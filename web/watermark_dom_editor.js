@@ -623,16 +623,33 @@ function addEditor(node) {
   }
 
   pickButton.addEventListener("click", async () => {
-    if (window.EyeDropper) {
-      try {
-        const result = await new window.EyeDropper().open();
-        if (result?.sRGBHex) {
-          setWidget(node, "tint_color", result.sRGBHex);
-          update();
-        }
-      } catch (_) {}
-    } else {
+    if (state.picking) return;
+    if (!window.EyeDropper) {
       colorInput.click();
+      return;
+    }
+
+    state.picking = true;
+    pickButton.disabled = true;
+    pickButton.blur();
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+      const result = await new window.EyeDropper().open({ signal: controller.signal });
+      if (result?.sRGBHex) {
+        setWidget(node, "tint_color", result.sRGBHex);
+        update();
+      }
+    } catch (_) {
+      // Cancel, timeout, and unsupported picker failures should all return the UI
+      // to normal without surfacing a blocking dialog in ComfyUI.
+    } finally {
+      clearTimeout(timeout);
+      state.picking = false;
+      pickButton.disabled = false;
+      pickButton.blur();
+      app.canvas?.canvas?.focus?.();
     }
   });
 
