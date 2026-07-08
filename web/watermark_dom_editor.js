@@ -168,6 +168,10 @@ function installStyles() {
       border-color: #8bbfff;
       background: #315985;
     }
+    .wm-color-ui-pick.active {
+      border-color: #8bbfff;
+      background: #315985;
+    }
     .wm-color-ui-controls {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -246,6 +250,11 @@ function installStyles() {
       border: 2px dashed rgba(255,255,255,.95);
       box-shadow: 0 0 0 1px rgba(0,0,0,.75);
       z-index: 3;
+    }
+    .wm-color-ui.sampling .wm-color-ui-watermark,
+    .wm-color-ui.sampling .wm-color-ui-handle,
+    .wm-color-ui.sampling .wm-color-ui-rotate-handle {
+      cursor: crosshair;
     }
     .wm-color-ui-watermark-fill {
       position: absolute;
@@ -381,7 +390,7 @@ function addEditor(node) {
 
   function localize() {
     const pairs = [
-      [pickButton, "Pick", "吸色", "Pick a color from the screen when supported.", "浏览器支持时，可从屏幕吸取颜色。"],
+      [pickButton, "Pick", "吸色", "Click this, then click the preview image to sample a color.", "点击后，再点击预览图即可吸取该位置颜色。"],
       [refreshButton, "Refresh", "刷新", "Reload the connected image and watermark preview.", "重新读取已连接的图片和水印预览。"],
       [opacityInput, "", "", "Watermark opacity.", "水印透明度。"],
       [strengthInput, "", "", "Tint strength. 100 fully uses the selected color; 0 keeps the original watermark color.", "染色强度。100 完全使用选定颜色；0 保留水印原本颜色。"],
@@ -426,6 +435,7 @@ function addEditor(node) {
     guides: true,
     stageSize: "medium",
     showMarkGuides: false,
+    sampling: false,
   };
 
   function widgetHeight(size = state.stageSize) {
@@ -584,6 +594,38 @@ function addEditor(node) {
     update();
   }
 
+  function setSampling(enabled) {
+    state.sampling = !!enabled;
+    root.classList.toggle("sampling", state.sampling);
+    pickButton.classList.toggle("active", state.sampling);
+    pickButton.title = state.sampling
+      ? tr("Click the preview image to sample a color. Press Esc to cancel.", "点击预览图吸色。按 Esc 取消。")
+      : tr("Click this, then click the preview image to sample a color.", "点击后，再点击预览图即可吸取该位置颜色。");
+    area.style.cursor = state.sampling ? "crosshair" : "";
+  }
+
+  function sampleColorFromPreview(event) {
+    if (!base.complete || base.naturalWidth <= 0 || base.naturalHeight <= 0) return false;
+    const rect = area.getBoundingClientRect();
+    const sx = Math.floor(clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 0.999999) * base.naturalWidth);
+    const sy = Math.floor(clamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 0.999999) * base.naturalHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    try {
+      ctx.drawImage(base, sx, sy, 1, 1, 0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+      const color = `#${[r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+      setWidget(node, "tint_color", color);
+      update();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   colorInput.addEventListener("input", () => {
     setWidget(node, "tint_color", colorInput.value);
     update();
@@ -622,34 +664,22 @@ function addEditor(node) {
     });
   }
 
-  pickButton.addEventListener("click", async () => {
-    if (state.picking) return;
-    if (!window.EyeDropper) {
-      colorInput.click();
-      return;
-    }
+  pickButton.addEventListener("click", () => {
+    setSampling(!state.sampling);
+  });
 
-    state.picking = true;
-    pickButton.disabled = true;
-    pickButton.blur();
+  area.addEventListener("pointerdown", (event) => {
+    if (!state.sampling) return;
+    event.preventDefault();
+    event.stopPropagation();
+    sampleColorFromPreview(event);
+    setSampling(false);
+  }, true);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    try {
-      const result = await new window.EyeDropper().open({ signal: controller.signal });
-      if (result?.sRGBHex) {
-        setWidget(node, "tint_color", result.sRGBHex);
-        update();
-      }
-    } catch (_) {
-      // Cancel, timeout, and unsupported picker failures should all return the UI
-      // to normal without surfacing a blocking dialog in ComfyUI.
-    } finally {
-      clearTimeout(timeout);
-      state.picking = false;
-      pickButton.disabled = false;
-      pickButton.blur();
-      app.canvas?.canvas?.focus?.();
+  root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.sampling) {
+      event.preventDefault();
+      setSampling(false);
     }
   });
 

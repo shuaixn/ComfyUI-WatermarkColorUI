@@ -11,7 +11,7 @@
 ### 功能
 
 - 支持透明 PNG 水印。
-- 支持水印颜色选择和浏览器吸色器。
+- 支持水印颜色选择和预览图内点击取色。
 - 支持透明度、染色强度、保留明暗、混合模式。
 - 支持拖动水印位置、右下角缩放、右上角旋转。
 - 支持中轴线提示和中心磁吸。
@@ -41,7 +41,7 @@ ComfyUI/custom_nodes/ComfyUI-WatermarkColorUI
 ### 使用说明
 
 - 点击颜色块选择水印颜色。
-- 点击 `Pick / 吸色` 使用浏览器吸色器。
+- 点击 `Pick / 吸色` 后，再点击预览图中的任意位置取色。
 - 如果主图前面接了 Resize 等中间节点，请点击节点上方的 ComfyUI 原生运行按钮。节点会执行上游流程，并用实际输入到水印节点的图像刷新预览。
 - 点击 `S / M / L` 切换固定预览高度。
 - 拖动水印框调整位置。
@@ -84,7 +84,7 @@ ComfyUI-WatermarkColorUI/
 ### 注意事项
 
 - 透明 PNG 水印建议同时连接 `image` 和 `mask` 输出。
-- 浏览器吸色器依赖浏览器支持 `EyeDropper` API；如果不支持，可以直接点击颜色块选色。
+- `Pick / 吸色` 只会在节点预览图内部取色，不调用浏览器原生 `EyeDropper`，避免部分浏览器卡死。
 - 运行上游 Resize、裁剪等节点时，请使用 ComfyUI 节点上方的原生运行按钮。
 
 ---
@@ -96,7 +96,7 @@ ComfyUI-WatermarkColorUI/
 ### Features
 
 - Transparent PNG watermark support.
-- Color picker and browser eyedropper support.
+- Color picker and in-preview image sampling support.
 - Opacity, tint strength, luminance preservation, and blend modes.
 - Drag to position, drag the bottom-right handle to scale, and drag the top-right handle to rotate.
 - Center guides and center snapping.
@@ -126,7 +126,7 @@ Then restart ComfyUI and hard-refresh the browser page.
 ### Usage
 
 - Click the color swatch to choose a watermark color.
-- Click `Pick` to use the browser eyedropper.
+- Click `Pick`, then click anywhere on the preview image to sample that pixel color.
 - If the main image passes through upstream nodes such as Resize, click ComfyUI's native run button above this node. The node will execute the upstream chain and refresh the preview with the actual image received by the watermark node.
 - Click `S / M / L` to switch fixed preview heights.
 - Drag the watermark box to move it.
@@ -169,5 +169,5 @@ ComfyUI-WatermarkColorUI/
 ### Notes
 
 - For transparent PNG watermarks, connect both the `image` and `mask` outputs from the watermark `Load Image` node.
-- The eyedropper depends on browser support for the `EyeDropper` API. If unsupported, use the color swatch directly.
+- `Pick` samples colors inside the node preview and does not call the browser-native `EyeDropper` API, avoiding browser freezes seen in some environments.
 - To execute upstream Resize, crop, or processing nodes, use ComfyUI's native run button above the node.
